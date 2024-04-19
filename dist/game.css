@@ -1,0 +1,23 @@
+body {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	height: 100vh;
+	margin: 0;
+	background-color: rgb(32,28,28);
+}
+
+:root {
+	font-family: system-ui,Avenir,Helvetica,Arial,sans-serif;
+	line-height: 0.5;
+	font-weight: 400;
+	color: #ffffffde;
+	font-synthesis: none;
+	text-rendering: optimizeLegibility;
+	-webkit-text-size-adjust
+	: 100%;
+}
+
+#container {
+	min-width: 80vh;
+}

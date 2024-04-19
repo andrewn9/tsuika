@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+
+<head>
+  <title>Create room</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script src="menu.js" defer></script>
+</head>
+
+<body>
+  <div id="container">
+    <h1>tSuika Game</h1>
+    <p>Join or create a room</p>
+    <form id="create">
+      <input type="text" id="username" name="username" placeholder="Username" required />
+      <input type="text" id="room" name="room" placeholder="Room" required />
+      <input type="submit" value="Create" />
+    </form>
+
+    <ul id="room-list">
+    </ul>
+  </div>
+</body>
+
+</html>
