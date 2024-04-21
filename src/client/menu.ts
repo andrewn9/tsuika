@@ -28,7 +28,7 @@ function updateRoomList(rooms) {
 
   const roomItems = rooms.map(room => {
     const listItem = document.createElement('li');
-    listItem.id = "room";
+    listItem.className = "room";
     listItem.textContent = `Room : ${room.code}, [${room.players}/${room.max}]`;
     return listItem;
   });

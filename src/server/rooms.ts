@@ -23,6 +23,7 @@ export function joinRoom(socket: any, room: string, username: string) {
 			max_players: 2,
 			state: "waitingForPlayers",
 		});
+		createEngine(room);
 		console.log(rooms);
 	}
 
@@ -33,7 +34,6 @@ export function joinRoom(socket: any, room: string, username: string) {
 	if (players.length == 2) {
 		console.log("room is full");
 		return;
-		// gameState.playersNames?.push(username);
 	}
 	
 	players.push({
