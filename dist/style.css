@@ -9,23 +9,32 @@ body {
 
 :root {
 	font-family: system-ui,Avenir,Helvetica,Arial,sans-serif;
-	line-height: 0.5;
+	line-height: 50%;
 	font-weight: 400;
 	color: #ffffffde;
 	font-synthesis: none;
 	text-rendering: optimizeLegibility;
-	-webkit-text-size-adjust
-	: 100%;
+	-webkit-text-size-adjust: inherit;
+    white-space: nowrap;
+}
+
+h1 {
+    font-size: 80px;
 }
 
 #container {
-	min-width: 80vh;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    max-width: 80%;
+    overflow-y: visible;
 }
+
 
 form {
     display: flex; 
     flex-wrap: wrap;
-    padding-bottom: 1vh;
 }
 
 form input {
@@ -38,32 +47,32 @@ form input {
 }
 
 form input[type=text] {
-    max-width: 40%;
+    min-width: 30%;
 }
 
 form input[type=submit] {
-    max-width: 20%;
+    width: auto;
 }
 
-#room-list {
+ul {
     border: 1px solid #ccc;
-    padding: 10px;
     width: 100%;
-    max-height: 200px;
     overflow-y: auto;
 }
 
-#scroll-box ul {
-    list-style: none;
+#room-list {
+    max-height: 20%;
+}
+
+.room {
     padding: 0;
     margin: 0;
-}
-
-#scroll-box li {
-    padding: 5px 10px;
+    height: auto;
+    padding-top: 1rem;
     cursor: pointer;
+    list-style: none;
 }
 
-#scroll-box li:hover {
+.room:hover {
     background-color: #f0f0f025;
 }
