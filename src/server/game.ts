@@ -10,8 +10,3 @@ export function createEngine(room) {
 
 	console.log("World created");
 };
-
-export type GameInfo = {
-	state: string;
-}
-

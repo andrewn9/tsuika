@@ -4,11 +4,10 @@ import { Server as SocketIOServer, Socket } from 'socket.io';
 
 const app: express.Application = express();
 const server = require("http").Server(app);
-const io: SocketIOServer = require('socket.io')(server);
+export const io: SocketIOServer = require('socket.io')(server);
 
 app.use(express.static('dist'));
 
-export const socket = { io };
 
 require('./rooms'); 
 
