@@ -4,6 +4,7 @@
   <title>Create room</title>
   <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
   <script src="menu.js" defer></script>
 </head>
 
@@ -12,13 +13,19 @@
     <h1>tSuika Game</h1>
     <p>Join or create a room</p>
     <form id="create">
-      <input type="text" id="username" name="username" placeholder="Username" required />
-      <input type="text" id="room" name="room" placeholder="Room" required />
+      <input type="text" maxlength="16" id="username" name="username" placeholder="Username" required />
+      <input type="text" maxlength="16" id="room" name="room" placeholder="Room" required />
       <input type="submit" value="Create / Join" />
     </form>
 
-    <ul id="room-list">
-    </ul>
+    <table id="rooms">
+      <tr class="top">
+        <th>Room name</th>
+        <th>Host</th>
+        <th>Players</th>
+        <th><button id="refresh"><i class="fa fa-refresh"></i></button></th>
+      </tr>
+    </table>  
   </div>
 </body>
 

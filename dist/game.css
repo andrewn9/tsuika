@@ -6,7 +6,7 @@ body {
 	margin: 0;
 	background-color: rgb(32,28,28);
 	background-image: url("./assets/bg.svg");
-	background-size: cover;
+	background-size: contain;
 }
 
 :root {
@@ -22,4 +22,16 @@ body {
 
 canvas {
 	height: 100%;
+	position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+canvas#debug {
+	z-index: 2;
+}
+
+canvas#svg {
+	z-index: 1;
 }
