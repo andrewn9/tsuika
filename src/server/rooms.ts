@@ -1,14 +1,15 @@
 import { createEngine } from "./game";
-import { socket } from "./index";
+import { io } from "./index";
 
-export interface Player {
+export interface Connection {
 	id: string;
 	num: number;
 	username: string;
+	host: boolean;
 }
 
 export interface Room {
-	players: Player[];
+	connections: Connection[];
 	max_players: number;
 	state: string;
 }
@@ -19,42 +20,47 @@ export function joinRoom(socket: any, room: string, username: string) {
 	if (!rooms.has(room)) {
 		console.log("creating room " + room);
 		rooms.set(room, {
-			players: [],
+			connections: [],
 			max_players: 2,
 			state: "waitingForPlayers",
 		});
-		createEngine(room);
-		console.log(rooms);
 	}
 
 	const roomData = rooms.get(room)!;
-	const players = roomData.players;
+	const connections = roomData.connections;
 	const gameState = roomData.state;
 
-	if (players.length == 2) {
+	if (connections.length == 2) {
 		console.log("room is full");
 		return;
 	}
 	
-	players.push({
+	connections.push({
 		id: socket.id,
-		num: players.length,
-		username,
+		num: connections.length,
+		username: username,
+		host: connections.length == 0
 	});
 
 	socket.join(room);
+	io.to(room).emit("roomInfo", roomData);
 	console.log("user joined room", room);
-	console.log(roomData.players.length)
 };
 
-function getAvailableRooms(): { code: string; players: number; max: number }[] {
-	const data: { code: string; players: number; max: number }[] = [];
+function getAvailableRooms(): { roomname: string; capacity: string; host: string; state: string}[] {
+	const data: { roomname: string; capacity: string; host: string, state: string }[] = [];
 
 	rooms.forEach((roomData, room) => {
+		let hostname;
+		for (let connection of roomData.connections) {
+			if (connection.host)
+				hostname = connection.username;
+		}
 		data.push({
-			code: room,
-			players: roomData.players.length,
-			max: roomData.max_players,
+			roomname: room,
+			capacity: roomData.connections.length.toString() + "/" + roomData.max_players,
+			state: roomData.state,
+			host: hostname
 		});
 	});
 
@@ -63,12 +69,13 @@ function getAvailableRooms(): { code: string; players: number; max: number }[] {
 
 const disconnectPlayer = (socket) => {
 	rooms.forEach((roomData, room) => {
-		const players = roomData.players;
+		const players = roomData.connections;
 		const playerIndex = players.findIndex((player) => player.id === socket.id);
 		if (playerIndex !== -1) {
 			console.log("user disconnected", socket.id);
 			rooms.get(room)!.state = "paused";
 			players.splice(playerIndex, 1);
+			io.to(room).emit("players", players);
 			if (players.length === 0) {
 				rooms.delete(room);
 				console.log(`Room ${room} is empty and has been deleted.`);
@@ -77,7 +84,7 @@ const disconnectPlayer = (socket) => {
 	});
 };
 
-socket.io.on("connection", (socket) => {
+io.on("connection", (socket) => {
 	socket.on("joinRoom", (data) => {
 		const room = data.room;
 		const username = data.username;

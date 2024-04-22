@@ -19,23 +19,48 @@ document.getElementById("create")?.addEventListener("submit", (event: Event) => 
 
 import { io } from "socket.io-client";
 import { Room } from "../server/rooms";
+import { join } from "path";
 const socket = io();
 
 
 function updateRoomList(rooms) {
-  const roomList = document.getElementById('room-list');
-  roomList.innerHTML = '';
+  const table = document.getElementById("rooms");
 
-  const roomItems = rooms.map(room => {
-    const listItem = document.createElement('li');
-    listItem.className = "room";
-    listItem.textContent = `Room : ${room.code}, [${room.players}/${room.max}]`;
-    return listItem;
+  const existingRooms = table.querySelectorAll("tr.room");
+  existingRooms.forEach(room => room.remove());
+
+  rooms.forEach(room => {
+    const roomRow = document.createElement("tr");
+    roomRow.classList.add("room");
+
+    const roomNameCell = document.createElement("td");
+    roomNameCell.textContent = room.roomname || "Could not fetch";
+
+    const hostCell = document.createElement("td");
+    hostCell.textContent = room.host || "Could not fetch";
+
+    const playersCell = document.createElement("td");
+    playersCell.textContent = room.capacity || "Could not fetch";
+
+    const joinButtonCell = document.createElement("td");
+    joinButtonCell.id = "join"
+    joinButtonCell.textContent = "Join"
+    joinButtonCell.addEventListener("click", () => {
+      if (sessionStorage.getItem("username")) {
+        window.location.href = "/game.html?room=" + encodeURIComponent(room.roomname);
+      } else {
+        alert("Please enter a username.")
+      }
+    });
+
+    roomRow.appendChild(roomNameCell);
+    roomRow.appendChild(hostCell);
+    roomRow.appendChild(playersCell);
+    roomRow.appendChild(joinButtonCell);
+
+    table.appendChild(roomRow);
   });
-
-  roomList.append(...roomItems);
 }
-
 
 socket.emit("queryRooms");
 
