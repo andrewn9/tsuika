@@ -15,6 +15,20 @@ export const fruitOrder: string[] = [
 	"watermelon"
 ];
 
+export const pointValues: number[] = [
+	1,
+	3,
+	6,
+	10,
+	15,
+	21,
+	28,
+	36,
+	45,
+	55,
+	66
+];
+
 export const default_def: IChamferableBodyDefinition = {
 	slop: 0.1,
 	restitution: 0.25,
@@ -24,6 +38,10 @@ export const default_def: IChamferableBodyDefinition = {
 };
 
 export const fruitSrc: PIXI.TextureSource[] = [];
+
+export function genBag(n: number) {
+	return new Array(n).fill(0).map(() => Math.floor(Math.random() * 5));
+}
 
 export async function loadFruitTex() {
     for (const fruit of fruitOrder) {
