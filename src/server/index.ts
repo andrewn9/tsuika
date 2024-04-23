@@ -5,10 +5,10 @@ const app: express.Application = express();
 const server = require("http").Server(app);
 export const io: SocketIOServer = require('socket.io')(server);
 
+// Statically serve this directory as express server
 app.use(express.static('dist'));
 
-require('./rooms'); 
-
+require('./rooms');
 server.listen(3000, () => {
-    console.log(`Listening on http://localhost:${3000}`);
+	console.log(`Listening on http://localhost:${3000}`);
 });

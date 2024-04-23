@@ -5,7 +5,7 @@ import { default_def, fruitSrc, fruitOrder, loadFruitTex } from './fruitcfg';
 import { getKeyDown } from './inputs';
 import { Connection } from "../server/rooms";
 import { Update } from "../server/game";
-import {Howl, Howler} from 'howler';
+import { Howl } from 'howler';
 
 const room = new URLSearchParams(window.location.search).get("room");
 const username = sessionStorage.getItem("username");
@@ -39,14 +39,14 @@ const boards: Board[] = [];
 let randomBag: number[] = [];
 
 const sounds = {
-    drop: new Howl({
-        src: ['./assets/drop.wav'],
-        volume: 0.25
-    }),
-    merge: new Howl({
-        src: ['./assets/pop.wav'],
-        volume: 0.25
-    }),
+	drop: new Howl({
+		src: ['./assets/drop.wav'],
+		volume: 0.25
+	}),
+	merge: new Howl({
+		src: ['./assets/pop.wav'],
+		volume: 0.25
+	}),
 }
 
 socket.on("bagUpdate", (data) => {
@@ -63,12 +63,12 @@ const common_text = new PIXI.TextStyle({
 		color: "#705929",
 		distance: 0,
 	},
-    fill: "#ffffff",
-    fontFamily: "\"Comic Sans MS\", cursive, sans-serif",
-    fontSize: 36,
-    fontWeight: "bold",
-    padding: 21,
-    stroke: { color: "#8b5d0e", width: 8},
+	fill: "#ffffff",
+	fontFamily: "\"Comic Sans MS\", cursive, sans-serif",
+	fontSize: 36,
+	fontWeight: "bold",
+	padding: 21,
+	stroke: { color: "#8b5d0e", width: 8 },
 });
 
 class Player {
@@ -80,38 +80,57 @@ class Player {
 
 	cloud: PIXI.Graphics;
 	preview: PIXI.Graphics;
-	sidebar: Map<string, (PIXI.Graphics |  PIXI.Sprite |  PIXI.Text)> = new Map();
+	sidebar: Map<string, (PIXI.Graphics | PIXI.Sprite | PIXI.Text)> = new Map();
 
 	heldFruit: Fruit;
 	index: number = 1;
 
 	x: number = 0;
 
+	/**
+	 * Deletes the current object by removing it from the board, stage, and players array.
+	 * @returns None
+	 */
 	delete() {
 		this.board.delete();
 		app.stage.removeChild(this.cloud, this.preview);
 		players.splice(players.findIndex(function () { return this === players; }), 1);
 	}
 
+	/**
+	 * Displays the next graphic element in the sidebar.
+	 * Generates a graphic element based on the next item in the randomBag array and positions it at a specific location.
+	 * Adds the generated graphic element to the sidebar and the app's stage.
+	 * @returns None
+	 */
 	shownext() {
-		let graphic = genGraphic(randomBag[this.index+1], 25);
+		let graphic = genGraphic(randomBag[this.index + 1], 25);
 		graphic.position = this.sidebar.get("nextBubble").position;
 		this.sidebar.set("nextfruit", graphic);
 		app.stage.addChild(graphic);
 	}
 
+	/**
+	 * Function to handle the spawning of a new fruit and setting it as static.
+	 * Also generates a graphic for the next fruit in the sidebar.
+	 * @returns None
+	 */
 	reload() {
 		this.heldFruit = spawnFruit(this.board, this.x, this.board.box_body.position.y - 750, randomBag[this.index % randomBag.length]);
 		Body.setStatic(this.heldFruit.body, true);
 
 		if (!this.sidebar.get("nextfruit")) {
-			let graphic = genGraphic(randomBag[this.index+1], 25);
+			let graphic = genGraphic(randomBag[this.index + 1], 25);
 			graphic.position = this.sidebar.get("nextBubble").position;
 			this.sidebar.set("nextfruit", graphic);
 			app.stage.addChild(graphic);
 		}
 	}
 
+	/**
+	 * Drops the current fruit onto the game board.
+	 * @returns None
+	 */
 	drop() {
 		let nextfruit = this.sidebar.get("nextfruit");
 		if (nextfruit) {
@@ -129,6 +148,11 @@ class Player {
 		this.preview.visible = false;
 	}
 
+	/**
+	 * Save the fruits on the board by converting their bodies to JSON and filtering out
+	 * unnecessary properties before returning an array of JSON strings.
+	 * @returns An array of JSON strings representing the bodies of the fruits on the board.
+	 */
 	save(): string[] {
 		let packet: string[] = [];
 		for (let fruit of this.board.fruits) {
@@ -139,6 +163,11 @@ class Player {
 		return packet;
 	}
 
+	/**
+	 * Loads a packet of body data and creates corresponding bodies in the physics engine.
+	 * @param {string[]} packet - An array of JSON strings representing body data.
+	 * @returns None
+	 */
 	load(packet: string[]) {
 		packet.forEach((body_json) => {
 			const bodyData = JSON.parse(body_json, (key, value) =>
@@ -165,6 +194,10 @@ class Player {
 		});
 	}
 
+	/**
+	 * Initializes the graphics for the object, setting up various elements such as clouds, names, bubbles, and text.
+	 * @returns None
+	 */
 	initGraphics() {
 		this.x = this.board.box_body.position.x;
 
@@ -193,23 +226,23 @@ class Player {
 		}
 
 		let side = 1;
-		if (this.board.box_body.position.x > app.screen.width/2)
+		if (this.board.box_body.position.x > app.screen.width / 2)
 			side = -1;
 
 		app.stage.addChild(name);
-		name.position = {x: this.board.box_sprite.x - name.width / 2, y: 1000};
+		name.position = { x: this.board.box_sprite.x - name.width / 2, y: 1000 };
 
 		let bubble = new PIXI.Sprite(bubble_tex);
 		bubble.setSize(160, 160);
 		bubble.anchor.set(0.5);
-		bubble.position = {x: this.board.box_sprite.x + side * (box_width / 2 + bubble.width/1.85), y: this.board.box_sprite.y - box_width - bubble.height/4};
+		bubble.position = { x: this.board.box_sprite.x + side * (box_width / 2 + bubble.width / 1.85), y: this.board.box_sprite.y - box_width - bubble.height / 4 };
 
 		let text = new PIXI.Text({
 			text: "Next",
 			style: common_text
 		});
 		text.zIndex = 5;
-		text.position = {x: bubble.position.x - text.width/2, y: bubble.position.y - bubble.height/1.5};
+		text.position = { x: bubble.position.x - text.width / 2, y: bubble.position.y - bubble.height / 1.5 };
 
 		this.sidebar.set("username", name);
 		this.sidebar.set("nextBubble", bubble);
@@ -235,6 +268,10 @@ class Board {
 		this.player = player;
 	}
 
+	/**
+	 * Remove the box object from the game, along with its graphical components
+	 * @returns None
+	 */
 	delete() {
 		this.clear();
 		Composite.remove(engine.world, this.box_body);
@@ -242,6 +279,10 @@ class Board {
 		boards.splice(boards.findIndex(function () { return this === boards; }), 1);
 	}
 
+	/**
+	 * Creates a box at a specific position based on the player's number.
+	 * @returns None
+	 */
 	init() {
 		switch (this.player.number) {
 			case 0: {
@@ -255,6 +296,11 @@ class Board {
 		}
 	}
 
+	/**
+	 * Removes all fruits from the game by removing their graphics from the stage
+	 * and their bodies from the physics world. It then clears the fruits array.
+	 * @returns None
+	 */
 	clear() {
 		for (let i = 0; i < this.fruits.length; i++) {
 			app.stage.removeChild(this.fruits[i].graphic);
@@ -263,6 +309,12 @@ class Board {
 		this.fruits.splice(0, this.fruits.length);
 	}
 
+	/**	
+	 * Removes a fruit from the game by removing its graphic from the stage,
+	 * removing its body from the physics engine world, and updating the fruits array.
+	 * @param {Body} body - The body of the fruit to be removed.
+	 * @returns {boolean} - Returns true if the fruit was successfully removed, false otherwise.
+	 */
 	removeFruit(body: Body) {
 		for (let i = 0; i < this.fruits.length; i++) {
 			if (this.fruits[i].body === body) {
@@ -278,6 +330,14 @@ class Board {
 
 let me: Player;
 let my_connection: string;
+
+/**
+ * Event listener for when a new connection is added to the socket.
+ * It creates a new player and board for each new connection, assigns a player number,
+ * sets the current player if the connection ID matches the socket ID, and emits an update event.
+ * @param {Connection[]} data - An array of connection objects representing the new connections.
+ * @returns None
+ */
 socket.on("connectionAdded", (data: Connection[]) => {
 	for (let connection of data) {
 		if (!connections.get(connection.id)) {
@@ -303,6 +363,12 @@ socket.on("connectionAdded", (data: Connection[]) => {
 	socket.emit("update", [room, update]);
 });
 
+/**
+ * Event listener for when a connection is removed.
+ * Removes the specified connections from the connections map.
+ * @param {Connection[]} data - An array of connections to be removed.
+ * @returns None
+ */
 socket.on("connectionRemoved", (data: Connection[]) => {
 	const removedConnections = [];
 	for (const [connectionId, connectionTuple] of connections.entries()) {
@@ -317,16 +383,27 @@ socket.on("connectionRemoved", (data: Connection[]) => {
 	});
 });
 
+/**
+ * Calculates the radius of a fruit based on the number of fruits.
+ * @param {number} nfruit - The number of fruits.
+ * @returns {number} The radius of the fruit.
+ */
 function getRadius(nfruit: number) {
 	let radius = (Math.pow(nfruit, 1.36) * 15.45 + 46.52) / 2;
 	return radius;
 }
 
+/**
+ * Generates a PIXI.Graphics object representing a fruit with the given parameters.
+ * @param {number} nfruit - The index of the fruit in the fruit source array.
+ * @param {number} [radiusOverride] - Optional parameter to override the radius of the fruit.
+ * @returns {PIXI.Graphics} A PIXI.Graphics object representing the fruit.
+ */
 function genGraphic(nfruit: number, radiusOverride?: number): PIXI.Graphics {
 	let graphic = new PIXI.Graphics(fruitSrc[nfruit]);
 	let ratio = graphic.height / graphic.width;
 	let radius = getRadius(nfruit);
-	if (radiusOverride) 
+	if (radiusOverride)
 		radius = radiusOverride
 	graphic.height = radius * 2 * ratio;
 	graphic.width = radius * 2;
@@ -339,6 +416,14 @@ function genGraphic(nfruit: number, radiusOverride?: number): PIXI.Graphics {
 	return graphic;
 }
 
+/**
+ * Spawns a fruit on the board at the specified coordinates with the given number of fruits.
+ * @param {Board} board - The game board where the fruit will be spawned.
+ * @param {number} x - The x-coordinate of the fruit on the board.
+ * @param {number} y - The y-coordinate of the fruit on the board.
+ * @param {number} nfruit - The number of fruits to spawn.
+ * @returns {Fruit} The newly spawned fruit object.
+ */
 function spawnFruit(board: Board, x: number, y: number, nfruit: number) {
 	// get fruit properties
 	// let specific = Common.extend(default_def, ...)
@@ -366,6 +451,14 @@ function spawnFruit(board: Board, x: number, y: number, nfruit: number) {
 const box_width = 675;
 const box_height = 1000;
 const box_stroke_thickness = 20;
+
+/**
+ * Creates a box object on the given board at the specified coordinates.
+ * @param {Board} board - The board on which the box will be created.
+ * @param {number} x - The x-coordinate of the box.
+ * @param {number} y - The y-coordinate of the box.
+ * @returns None
+ */
 function createBox(board: Board, x: number, y: number) {
 	let thickness = 255;
 
@@ -405,6 +498,12 @@ function createBox(board: Board, x: number, y: number) {
 	Body.setVelocity(box, { x: 0, y: 0 });
 }
 
+/**
+ * Update the position and angle of a PIXI graphic based on a physics body.
+ * @param {Body} body - The physics body to get position and angle from.
+ * @param {PIXI.Sprite | PIXI.Graphics} graphic - The PIXI graphic to update.
+ * @returns None
+ */
 function draw(body: Body, graphic: PIXI.Sprite | PIXI.Graphics) {
 	graphic.position.set(body.position.x, body.position.y);
 	graphic.angle = body.angle * 180 / Math.PI;
@@ -471,29 +570,29 @@ function draw(body: Body, graphic: PIXI.Sprite | PIXI.Graphics) {
 	window.addEventListener("keydown", (e) => {
 		switch (e.key.toUpperCase()) {
 			case "A":
-			{
-				me.reload();
-				let update: Update = {
-					sender: my_connection,
-					event: {
-						type: "reload"
-					}
-				};
-				socket.emit("update", [room, update]);
-				break;
-			}
+				{
+					me.reload();
+					let update: Update = {
+						sender: my_connection,
+						event: {
+							type: "reload"
+						}
+					};
+					socket.emit("update", [room, update]);
+					break;
+				}
 			case " ":
-			{
-				me.drop();
-				let update: Update = {
-					sender: my_connection,
-					event: {
-						type: "drop"
-					}
-				};
-				socket.emit("update", [room, update]);
-				break;
-			}
+				{
+					me.drop();
+					let update: Update = {
+						sender: my_connection,
+						event: {
+							type: "drop"
+						}
+					};
+					socket.emit("update", [room, update]);
+					break;
+				}
 		}
 	});
 
@@ -641,6 +740,4 @@ function draw(body: Body, graphic: PIXI.Sprite | PIXI.Graphics) {
 			}
 		}
 	});
-
-
 })();

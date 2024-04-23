@@ -2,9 +2,10 @@ import { genBag } from "../client/fruitcfg";
 import { gameUpdate } from "./game";
 import { io } from "./index";
 
+// Interface definitions for connections and rooms
 export interface Connection {
-	id: string;
-	num: number;
+	id: string;	// socket reference
+	num: number; // player #
 	username: string;
 	host: boolean;
 }
@@ -18,21 +19,37 @@ export interface Room {
 
 export const rooms: Map<string, Room> = new Map();
 
+/**
+ * Finds the missing number in a given array of numbers. Used for numbering the players.
+ * @param {number[]} arr - The array of numbers to search for the missing number.
+ * @returns The missing number in the array, or 0 if the array is empty.
+ */
 function findMissingNumber(arr: number[]): number {
 	if (arr.length < 1) {
 		return 0;
 	}
 	for (let i = 0; i < arr.length; i++) {
-		if(arr[i]!==i) {
+		if (arr[i] !== i) {
 			return i;
 		}
 	}
 	return arr.length;
 }
 
+/**
+ * Join a room with the given socket, room name, and username.
+ * If the room does not exist, it creates a new room with initial settings.
+ * If the room is full (2 players), it logs a message and returns.
+ * Adds the socket connection to the room with the appropriate player number and username.
+ * Emits events to update connections and bag for the room.
+ * @param {any} socket - The socket connection to join the room.
+ * @param {string} room - The name of the room to join.
+ * @param {string} username - The username of the player joining the room.
+ * @returns None
+ */
 export function joinRoom(socket: any, room: string, username: string) {
-	if (!rooms.has(room)) {
-		console.log("creating room " + room);
+	if (!rooms.has(room)) { // No room found
+		// Create room
 		rooms.set(room, {
 			connections: [],
 			max_players: 2,
@@ -45,31 +62,36 @@ export function joinRoom(socket: any, room: string, username: string) {
 	const connections = roomData.connections;
 	const gameState = roomData.state;
 
-	if (connections.length == 2) {
-		console.log("room is full");
+	// Room is full
+	if (connections.length == roomData.max_players) {
 		return;
 	}
-	
+
+	// Assign player number
 	let nums = [] as number[];
 	connections.forEach(connection => {
 		nums.push(connection.num);
 	});
 
 	let pnum = findMissingNumber(nums);
-	connections.push({
+	connections.push({ // Push new connection
 		id: socket.id,
 		num: pnum,
 		username: username,
 		host: connections.length == 0
 	});
 
+	// Connect to room and send/recieve updates
 	socket.join(room);
 	io.to(room).emit("connectionAdded", roomData.connections);
 	io.to(room).emit("bagUpdate", roomData.bag);
-	console.log("player " + pnum.toString() + " " +username + " joined room", room);
 };
 
-function getAvailableRooms(): { roomname: string; capacity: string; host: string; state: string}[] {
+/**
+ * Retrieves the available rooms along with their details
+ * @returns An array of objects containing room details
+ */
+function getAvailableRooms(): { roomname: string; capacity: string; host: string; state: string }[] {
 	const data: { roomname: string; capacity: string; host: string, state: string }[] = [];
 
 	rooms.forEach((roomData, room) => {
@@ -89,6 +111,11 @@ function getAvailableRooms(): { roomname: string; capacity: string; host: string
 	return data;
 }
 
+/**
+ * Disconnects a player from the game room and performs necessary cleanup actions.
+ * @param {object} socket - The socket object representing the player connection.
+ * @returns None
+ */
 const disconnectPlayer = (socket) => {
 	rooms.forEach((roomData, room) => {
 		const players = roomData.connections;
