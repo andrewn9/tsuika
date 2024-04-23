@@ -1,12 +1,14 @@
-import { Engine, World, Bodies, Body, Detector } from "matter-js";
+import { Socket } from "socket.io";
+import { io } from "./index";
 
-export function createEngine(room) {
-	const engine = Engine.create();
+export type Update = {
+    sender: string;
+    event: {
+        type: string;
+        data?: any;
+    };
+}
 
-	const worldBounds = {
-		min: { x: 0, y: 0 },
-		max: { x: 800, y: 600 },
-	};
-
-	console.log("World created");
-};
+export function gameUpdate(socket: Socket, [room, data]) {
+    socket.to(room).emit("update", data);
+}

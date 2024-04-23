@@ -1,4 +1,5 @@
-import { createEngine } from "./game";
+import { genBag } from "../client/fruitcfg";
+import { gameUpdate } from "./game";
 import { io } from "./index";
 
 export interface Connection {
@@ -12,9 +13,22 @@ export interface Room {
 	connections: Connection[];
 	max_players: number;
 	state: string;
+	bag?: number[];
 }
 
 export const rooms: Map<string, Room> = new Map();
+
+function findMissingNumber(arr: number[]): number {
+	if (arr.length < 1) {
+		return 0;
+	}
+	for (let i = 0; i < arr.length; i++) {
+		if(arr[i]!==i) {
+			return i;
+		}
+	}
+	return arr.length;
+}
 
 export function joinRoom(socket: any, room: string, username: string) {
 	if (!rooms.has(room)) {
@@ -23,6 +37,7 @@ export function joinRoom(socket: any, room: string, username: string) {
 			connections: [],
 			max_players: 2,
 			state: "waitingForPlayers",
+			bag: genBag(50)
 		});
 	}
 
@@ -35,16 +50,23 @@ export function joinRoom(socket: any, room: string, username: string) {
 		return;
 	}
 	
+	let nums = [] as number[];
+	connections.forEach(connection => {
+		nums.push(connection.num);
+	});
+
+	let pnum = findMissingNumber(nums);
 	connections.push({
 		id: socket.id,
-		num: connections.length,
+		num: pnum,
 		username: username,
 		host: connections.length == 0
 	});
 
 	socket.join(room);
-	io.to(room).emit("roomInfo", roomData);
-	console.log("user joined room", room);
+	io.to(room).emit("connectionAdded", roomData.connections);
+	io.to(room).emit("bagUpdate", roomData.bag);
+	console.log("player " + pnum.toString() + " " +username + " joined room", room);
 };
 
 function getAvailableRooms(): { roomname: string; capacity: string; host: string; state: string}[] {
@@ -75,7 +97,7 @@ const disconnectPlayer = (socket) => {
 			console.log("user disconnected", socket.id);
 			rooms.get(room)!.state = "paused";
 			players.splice(playerIndex, 1);
-			io.to(room).emit("players", players);
+			io.to(room).emit("connectionRemoved", players);
 			if (players.length === 0) {
 				rooms.delete(room);
 				console.log(`Room ${room} is empty and has been deleted.`);
@@ -89,6 +111,10 @@ io.on("connection", (socket) => {
 		const room = data.room;
 		const username = data.username;
 		joinRoom(socket, room, username);
+	});
+
+	socket.on("update", (data) => {
+		gameUpdate(socket, data);
 	});
 
 	socket.on("queryRooms", () => {
