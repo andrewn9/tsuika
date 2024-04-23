@@ -13,13 +13,14 @@ usernameInput.addEventListener('input', (event: Event) => {
 
 document.getElementById("create")?.addEventListener("submit", (event: Event) => {
   event.preventDefault();
-  const room = (document.getElementById("room") as HTMLInputElement).value;
+  let room = (document.getElementById("room") as HTMLInputElement).value;
+  if (!room) {
+    room = usernameInput.value + "'s room";
+  }
   window.location.href = "/game.html?room=" + encodeURIComponent(room);
 });
 
 import { io } from "socket.io-client";
-import { Room } from "../server/rooms";
-import { join } from "path";
 const socket = io();
 
 
