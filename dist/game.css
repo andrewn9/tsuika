@@ -6,7 +6,7 @@ body {
 	margin: 0;
 	background-color: rgb(32,28,28);
 	background-image: url("./assets/bg.svg");
-	background-size: contain;
+	background-size: cover;
 }
 
 :root {

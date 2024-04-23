@@ -5,6 +5,7 @@ body {
 	height: 100vh;
 	margin: 0;
 	background-color: rgb(32,28,28);
+	background-size: cover;
 }
 
 :root {
