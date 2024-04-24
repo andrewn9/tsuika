@@ -120,10 +120,6 @@ class Player {
 		if (!this.heldFruit && !this.dead) {
 			this.heldFruit = spawnFruit(this.board, this.x, this.board.box_body.position.y - 750, randomBag[this.index % randomBag.length]);
 			Body.setStatic(this.heldFruit.body, true);
-	
-			if (!this.sidebar.get("nextfruit")) {
-				this.shownext(this.index + 1)
-			}
 		}
 	}
 
@@ -133,15 +129,12 @@ class Player {
 	 */
 	drop() {
 		if (!this.dead && this.heldFruit) {
+			
 			let nextfruit = this.sidebar.get("nextfruit");
-			if (nextfruit) {
-				app.stage.removeChild(nextfruit);
-				this.sidebar.set("nextfruit", null)
-			}
-
+			app.stage.removeChild(nextfruit);
+			
+			this.shownext(this.index + 1)
 			this.index++;
-			this.index = this.index % randomBag.length;
-			this.shownext(this.index);
 
 			sounds.drop.play();
 			Body.setStatic(this.heldFruit.body, false);
