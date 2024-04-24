@@ -84,7 +84,10 @@ function updateRoomList(rooms) {
 socket.emit("queryRooms");
 
 socket.on('updateRooms', (rooms) => {
-
-
 	updateRoomList(rooms);
+});
+let refreshBtn = document.getElementById("refresh") as HTMLButtonElement;
+
+refreshBtn.addEventListener("click", function() {
+	socket.emit("queryRooms");
 });
