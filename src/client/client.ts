@@ -1,7 +1,7 @@
 import { io } from "socket.io-client";
 import * as PIXI from 'pixi.js';
 import { Engine, World, Bodies, Body, Composite, IChamferableBodyDefinition, Render, Runner, MouseConstraint, Mouse, Events, Common, Sleeping } from "matter-js";
-import { default_def, fruitSrc, fruitOrder, loadFruitTex } from './fruitcfg';
+import { default_def, fruitSrc, fruitOrder, loadFruitTex, pointValues } from './fruitcfg';
 import { getKeyDown } from './inputs';
 import { Connection } from "../server/rooms";
 import { Update } from "../server/game";
@@ -31,6 +31,7 @@ class Fruit {
 	graphic: PIXI.Graphics;
 	body: Body;
 	type: number;
+	active: boolean = false;
 };
 
 const connections: Map<string, [Connection, Player]> = new Map();
@@ -56,31 +57,27 @@ socket.on("bagUpdate", (data) => {
 let cloud_tex, box_tex, bubble_tex;
 
 const common_text = new PIXI.TextStyle({
-	dropShadow: {
-		alpha: 0.3,
-		angle: 0,
-		blur: 26,
-		color: "#705929",
-		distance: 0,
-	},
 	fill: "#ffffff",
 	fontFamily: "\"Comic Sans MS\", cursive, sans-serif",
 	fontSize: 36,
 	fontWeight: "bold",
 	padding: 21,
 	stroke: { color: "#8b5d0e", width: 8 },
+	align: "center"
 });
 
 class Player {
 	constructor() { players.push(this); }
 
 	initialized: boolean = false;
+	dead: boolean = false;
 	board: Board;
 	number: number;
 
+	color: PIXI.Color;
 	cloud: PIXI.Graphics;
 	preview: PIXI.Graphics;
-	sidebar: Map<string, (PIXI.Graphics | PIXI.Sprite | PIXI.Text)> = new Map();
+	sidebar: Map<string, (PIXI.Graphics | PIXI.Sprite | PIXI.BitmapText)> = new Map();
 
 	heldFruit: Fruit;
 	index: number = 1;
@@ -94,6 +91,9 @@ class Player {
 	delete() {
 		this.board.delete();
 		app.stage.removeChild(this.cloud, this.preview);
+		for (let [name, element] of this.sidebar) {
+			app.stage.removeChild(element);
+		}
 		players.splice(players.findIndex(function () { return this === players; }), 1);
 	}
 
@@ -103,8 +103,9 @@ class Player {
 	 * Adds the generated graphic element to the sidebar and the app's stage.
 	 * @returns None
 	 */
-	shownext() {
-		let graphic = genGraphic(randomBag[this.index + 1], 25);
+	shownext(index: number) {
+		index = index % randomBag.length;
+		let graphic = genGraphic(randomBag[index], 25);
 		graphic.position = this.sidebar.get("nextBubble").position;
 		this.sidebar.set("nextfruit", graphic);
 		app.stage.addChild(graphic);
@@ -116,14 +117,13 @@ class Player {
 	 * @returns None
 	 */
 	reload() {
-		this.heldFruit = spawnFruit(this.board, this.x, this.board.box_body.position.y - 750, randomBag[this.index % randomBag.length]);
-		Body.setStatic(this.heldFruit.body, true);
-
-		if (!this.sidebar.get("nextfruit")) {
-			let graphic = genGraphic(randomBag[this.index + 1], 25);
-			graphic.position = this.sidebar.get("nextBubble").position;
-			this.sidebar.set("nextfruit", graphic);
-			app.stage.addChild(graphic);
+		if (!this.heldFruit && !this.dead) {
+			this.heldFruit = spawnFruit(this.board, this.x, this.board.box_body.position.y - 750, randomBag[this.index % randomBag.length]);
+			Body.setStatic(this.heldFruit.body, true);
+	
+			if (!this.sidebar.get("nextfruit")) {
+				this.shownext(this.index + 1)
+			}
 		}
 	}
 
@@ -132,20 +132,36 @@ class Player {
 	 * @returns None
 	 */
 	drop() {
-		let nextfruit = this.sidebar.get("nextfruit");
-		if (nextfruit) {
-			app.stage.removeChild(nextfruit);
-			this.sidebar.set("nextfruit", null)
+		if (!this.dead && this.heldFruit) {
+			let nextfruit = this.sidebar.get("nextfruit");
+			if (nextfruit) {
+				app.stage.removeChild(nextfruit);
+				this.sidebar.set("nextfruit", null)
+			}
+
+			this.index++;
+			this.index = this.index % randomBag.length;
+			this.shownext(this.index);
+
+			sounds.drop.play();
+			Body.setStatic(this.heldFruit.body, false);
+			this.board.fruits.push(this.heldFruit);
+			this.heldFruit = null;
+			this.preview.visible = false;
+
+			setTimeout(() => {
+				this.reload();
+				if (this === me) {
+					let update: Update = {
+						sender: my_connection,
+						event: {
+							type: "reload"
+						}
+					};
+					socket.emit("update", [room, update]);
+				}
+			}, 750);
 		}
-
-		this.index++;
-		this.shownext();
-
-		sounds.drop.play();
-		Body.setStatic(this.heldFruit.body, false);
-		this.board.fruits.push(this.heldFruit);
-		this.heldFruit = null;
-		this.preview.visible = false;
 	}
 
 	/**
@@ -178,6 +194,7 @@ class Player {
 				angle: bodyData.angle,
 				force: bodyData.force,
 				torque: bodyData.torque,
+				isStatic: bodyData.isStatic
 			}, 15);
 			Body.setVelocity(body, bodyData.velocity);
 			Body.setAngularVelocity(body, bodyData.angularVelocity);
@@ -190,8 +207,23 @@ class Player {
 			fruit.board.fruits.push(fruit);
 			fruit.type = Number.parseInt(body.label)
 			fruit.graphic = genGraphic(fruit.type);
+			if (this.dead) {
+				fruit.graphic.tint = '#4d4a49';
+			}
 			app.stage.addChild(fruit.graphic);
 		});
+	}
+
+	/**
+	 * Freezes all fruits
+	 * @returns None
+	 */
+	die() {
+		this.dead = true;
+		for (let fruit of this.board.fruits) {
+			fruit.graphic.tint = '#4d4a49';
+			Body.setStatic(fruit.body, true);
+		}
 	}
 
 	/**
@@ -220,8 +252,9 @@ class Player {
 			if (this === tuple[1]) {
 				name = new PIXI.Text({
 					text: tuple[0].username,
-					style: common_text
+					style: common_text,
 				});
+				name.tint = this.color;
 			}
 		}
 
@@ -232,25 +265,46 @@ class Player {
 		app.stage.addChild(name);
 		name.position = { x: this.board.box_sprite.x - name.width / 2, y: 1000 };
 
-		let bubble = new PIXI.Sprite(bubble_tex);
-		bubble.setSize(160, 160);
-		bubble.anchor.set(0.5);
-		bubble.position = { x: this.board.box_sprite.x + side * (box_width / 2 + bubble.width / 1.85), y: this.board.box_sprite.y - box_width - bubble.height / 4 };
+		let score_bubble = new PIXI.Sprite(bubble_tex);
+		score_bubble.setSize(180, 180);
+		score_bubble.anchor.set(0.5);
+		score_bubble.position = { x: this.board.box_sprite.x + side * (box_width / 2 + score_bubble.width / 1.75), y: this.board.box_sprite.y - box_width - score_bubble.height / 4 };
 
-		let text = new PIXI.Text({
+		let next_bubble = new PIXI.Sprite(bubble_tex);
+		next_bubble.setSize(160, 160);
+		next_bubble.anchor.set(0.5);
+		next_bubble.position = { x: score_bubble.position.x, y: score_bubble.position.y + score_bubble.height * 1.35 };
+
+		let score_text = new PIXI.BitmapText({
+			text: "Score",
+			style: common_text
+		});
+		let score = new PIXI.BitmapText({
+			text: "0",
+			style: common_text
+		});
+		let next_text = new PIXI.BitmapText({
 			text: "Next",
 			style: common_text
 		});
-		text.zIndex = 5;
-		text.position = { x: bubble.position.x - text.width / 2, y: bubble.position.y - bubble.height / 1.5 };
-
+		score.anchor.set(0.5);
+		score.zIndex = 5;
+		score_text.zIndex = 5;
+		next_text.zIndex = 5;
+		score.position = { x: score_bubble.position.x, y: score_bubble.position.y};
+		score_text.position = { x: score_bubble.position.x - score_text.width / 2, y: score_bubble.position.y - score_bubble.height / 1.5 };
+		next_text.position = { x: next_bubble.position.x - next_text.width / 2, y: next_bubble.position.y - next_bubble.height / 1.5 };
+		app.stage.addChild(score);
+		app.stage.addChild(score_bubble);
+		app.stage.addChild(score_text);
+		app.stage.addChild(next_bubble);
+		app.stage.addChild(next_text);
+		this.sidebar.set("score", score);
+		this.sidebar.set("scoreBubble", score_bubble);
+		this.sidebar.set("scoreText", score_text);
+		this.sidebar.set("nextBubble", next_bubble);
+		this.sidebar.set("nextText", next_text);
 		this.sidebar.set("username", name);
-		this.sidebar.set("nextBubble", bubble);
-		this.sidebar.set("nextText", text);
-
-		app.stage.addChild(text);
-		app.stage.addChild(bubble);
-
 		this.initialized = true;
 	}
 };
@@ -286,10 +340,12 @@ class Board {
 	init() {
 		switch (this.player.number) {
 			case 0: {
+				this.player.color = new PIXI.Color('ffeca8');
 				createBox(this, appWidth / 4.5, 9 * appHeight / 10);
 				break;
 			}
 			case 1: {
+				this.player.color = new PIXI.Color('c9a8ff');
 				createBox(this, appWidth - appWidth / 4.5, 9 * appHeight / 10);
 				break;
 			}
@@ -315,12 +371,31 @@ class Board {
 	 * @param {Body} body - The body of the fruit to be removed.
 	 * @returns {boolean} - Returns true if the fruit was successfully removed, false otherwise.
 	 */
-	removeFruit(body: Body) {
+	async removeFruit(body: Body) {
 		for (let i = 0; i < this.fruits.length; i++) {
 			if (this.fruits[i].body === body) {
-				app.stage.removeChild(this.fruits[i].graphic);
-				this.fruits.splice(i, 1);
 				World.remove(engine.world, body);
+				let original = this.fruits[i].graphic;
+				let mask = genGraphic(this.fruits[i].type);
+
+				this.fruits.splice(i, 1);
+
+
+				app.stage.addChild(mask);
+				mask.blendMode = 'erase';
+				mask.position = original.position;
+				mask.angle = original.angle;
+
+				original.mask = mask;
+
+				for (let i = 0; i < 10; i++) {
+					mask.width *= 0.75;
+					mask.height *= 0.75;
+					await new Promise((resolve) => setTimeout(resolve, 15));
+				}
+
+				app.stage.removeChild(original, mask);
+
 				return true;
 			}
 		}
@@ -495,6 +570,7 @@ function createBox(board: Board, x: number, y: number) {
 
 	board.box_body = box;
 	board.box_sprite = box_sprite;
+	board.box_sprite.tint = board.player.color;
 	Body.setVelocity(box, { x: 0, y: 0 });
 }
 
@@ -569,34 +645,39 @@ function draw(body: Body, graphic: PIXI.Sprite | PIXI.Graphics) {
 
 	window.addEventListener("keydown", (e) => {
 		switch (e.key.toUpperCase()) {
-			case "A":
-				{
-					me.reload();
-					let update: Update = {
-						sender: my_connection,
-						event: {
-							type: "reload"
-						}
-					};
-					socket.emit("update", [room, update]);
-					break;
-				}
 			case " ":
 				{
-					me.drop();
 					let update: Update = {
 						sender: my_connection,
 						event: {
-							type: "drop"
+							type: "drop",
+							data: me.index
 						}
 					};
+					me.drop();
 					socket.emit("update", [room, update]);
 					break;
 				}
 		}
 	});
 
-	Events.on(engine, 'collisionStart', function (event) {
+	function sync(volatile?: boolean) {
+		let update: Update = {
+			sender: my_connection,
+			event: {
+				type: "updateOthers",
+				data: me.save()
+			}
+		};
+		if (volatile) {
+			socket.volatile.emit("update", [room, update]);
+		} else {
+			socket.emit("update", [room, update]);
+		}
+	}
+
+	const death_height = 295;
+	Events.on(engine, 'collisionStart', async function (event) {
 		var pairs = event.pairs;
 
 		for (var i = 0, j = pairs.length; i != j; ++i) {
@@ -604,6 +685,10 @@ function draw(body: Body, graphic: PIXI.Sprite | PIXI.Graphics) {
 
 			let body1 = pair.bodyA;
 			let body2 = pair.bodyB;
+
+			if (!body1 || !body2) {
+				continue;
+			}
 
 			if (body1.label === body2.label && body1.label !== "Body") {
 				let mp = {
@@ -620,11 +705,8 @@ function draw(body: Body, graphic: PIXI.Sprite | PIXI.Graphics) {
 
 				if (board) {
 					let nfruit = Number.parseInt(body1.label);
-					if (nfruit < fruitOrder.length - 1) {
-						board.fruits.push(spawnFruit(board, mp.x, mp.y, nfruit + 1));
-					}
-
 					sounds.merge.play();
+
 					// Prevent fruit from being included in multiple pair merges in 1 collision interval
 					body1.label = "Body"
 					body2.label = "Body"
@@ -632,18 +714,82 @@ function draw(body: Body, graphic: PIXI.Sprite | PIXI.Graphics) {
 					board.removeFruit(body1);
 					board.removeFruit(body2);
 
+					let fruit;
+					if (nfruit < fruitOrder.length - 1) {
+						fruit = spawnFruit(board, mp.x, mp.y, nfruit + 1);
+						board.fruits.push(fruit);
+					}
+					if (board == me.board) {
+						sync();
+						let score = me.sidebar.get("score") as PIXI.BitmapText;
+						score.text = (Number.parseInt(score.text) + pointValues[nfruit]).toString();
+						let update: Update = {
+							sender: my_connection,
+							event: {
+								type: "score",
+								data: score.text
+							}
+						};
+						socket.emit("update", [room, update]);
+					}
+					if (fruit) {
+						let original = fruit.graphic.getSize();
+						fruit.graphic.width = original.width / 4;
+						fruit.graphic.height = original.height / 4;
+						for (let i = 0; i < 5; i++) {
+							fruit.graphic.width *= 1.25;
+							fruit.graphic.height *= 1.25;
+							await new Promise((resolve) => setTimeout(resolve, 15));
+						}
+						fruit.graphic.setSize(original);
+					}
+				}
+			}
+			if (
+				body1.position.x > me.board.box_body.bounds.min.x && body1.position.x < me.board.box_body.bounds.max.x
+				&&
+				body2.position.x > me.board.box_body.bounds.min.x && body2.position.x < me.board.box_body.bounds.max.x
+			) {
+				if (me.heldFruit && (body1 === me.heldFruit.body || body2 === me.heldFruit.body || body1 === me.board.box_body || body2 === me.board.box_body))
+					continue;
+
+				for (let fruit of me.board.fruits) {
+					if (fruit.body === body1 || fruit.body === body2)
+						fruit.active = true;
+				}
+			}
+		}
+	});
+
+	Events.on(engine, "afterUpdate", () => {
+		if (me && !me.dead) {
+			for (let fruit of me.board.fruits) {
+				if(fruit.body.position.y < death_height && fruit.active) {
+					console.log("death");
+					me.dead = true;
+					sync();
 					let update: Update = {
 						sender: my_connection,
 						event: {
-							type: "updateOthers",
-							data: me.save()
+							type: "death"
 						}
 					};
+					me.die();
 					socket.emit("update", [room, update]);
 				}
 			}
 		}
 	});
+
+	let i = 0;
+	Events.on(engine, "collisionEnd", () => {
+		i++;
+		if (i > 50)
+			i = 0;
+		if (i % 7 === 0) {
+			sync(true);
+		}
+	})
 
 	socket.on("update", (update: Update) => {
 		let player = connections.get(update.sender)[1];
@@ -656,7 +802,20 @@ function draw(body: Body, graphic: PIXI.Sprite | PIXI.Graphics) {
 				player.reload();
 				break;
 			}
+			case "death": {
+				player.die();
+				break;
+			}
+			case "score": {
+				let score = player.sidebar.get("score") as PIXI.BitmapText;
+				score.text = update.event.data;
+				break;
+			}
 			case "drop": {
+				if (!player.heldFruit && !player.sidebar.get("nextfruit")) {
+					player.index = update.event.data;
+					player.reload();
+				}
 				player.drop();
 				break;
 			}
@@ -673,6 +832,10 @@ function draw(body: Body, graphic: PIXI.Sprite | PIXI.Graphics) {
 			if (!player.initialized) {
 				player.board.init();
 				player.initGraphics();
+
+				if (player === me) {
+					player.reload();
+				}
 			}
 		}
 		for (let board of boards) {
@@ -740,4 +903,20 @@ function draw(body: Body, graphic: PIXI.Sprite | PIXI.Graphics) {
 			}
 		}
 	});
+
+	let wheel_tex = await PIXI.Assets.load({
+		src: "./assets/suika_wheel.png",
+		data: {
+			parseAsGraphicsContext: false,
+		},
+	});
+
+	let wheel = new PIXI.Sprite(wheel_tex);
+	wheel.width = 350;
+	wheel.height = 350;
+	wheel.anchor.set(0.5);
+	wheel.position = {x: app.screen.width/2, y: 3*app.screen.height/4};
+	app.stage.addChild(wheel);
+
+
 })();

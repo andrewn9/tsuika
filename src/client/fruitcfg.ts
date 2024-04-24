@@ -30,7 +30,7 @@ export const pointValues: number[] = [
 ];
 
 export const default_def: IChamferableBodyDefinition = {
-	slop: 0.1,
+	slop: 0.3,
 	restitution: 0.25,
 	angle: -Math.PI/4,
 	angularVelocity: 0,
