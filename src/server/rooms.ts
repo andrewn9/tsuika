@@ -12,6 +12,7 @@ export interface Connection {
 
 export interface Room {
 	connections: Connection[];
+	readies: number;
 	max_players: number;
 	state: string;
 	bag?: number[];
@@ -52,6 +53,7 @@ export function joinRoom(socket: any, room: string, username: string) {
 		// Create room
 		rooms.set(room, {
 			connections: [],
+			readies: 0,
 			max_players: 2,
 			state: "waitingForPlayers",
 			bag: genBag(50)
@@ -142,6 +144,15 @@ io.on("connection", (socket) => {
 
 	socket.on("update", (data) => {
 		gameUpdate(socket, data);
+	});
+
+	socket.on("ready", (data) => {
+		let room = rooms.get(data[0]);
+		room.readies++;
+		if (room.readies === room.max_players)
+		{
+			socket.to(data[0]).emit("start");
+		}
 	});
 
 	socket.on("queryRooms", () => {
