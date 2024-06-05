@@ -1,7 +1,9 @@
 ![Screenshot](./screenshots/in-game.png)
 # tSuika game
 
-Multiplayer TypeScript remake of [Suika Game](https://en.wikipedia.org/wiki/Suika_Game) for the web using PIXI.js and Matter.js.
+1 Week Multiplayer TypeScript remake of [Suika Game](https://en.wikipedia.org/wiki/Suika_Game) for the web using PIXI.js and Matter.js.
+
+A more extensive polished remake is being worked on at [andrewn9/tsuika-99](https://github.com/andrewn9/tsuika-99)
 
 ## Features
 
