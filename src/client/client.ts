@@ -132,8 +132,6 @@ class Player {
 			
 			let nextfruit = this.sidebar.get("nextfruit");
 			app.stage.removeChild(nextfruit);
-			
-			this.shownext(this.index + 1)
 			this.index++;
 
 			sounds.drop.play();
@@ -143,6 +141,7 @@ class Player {
 			this.preview.visible = false;
 
 			setTimeout(() => {
+				this.shownext(this.index + 1)
 				this.reload();
 				if (this === me) {
 					let update: Update = {
